@@ -28,8 +28,10 @@ library(tidyverse)
 Uid_raw <- read.xlsx("data/UID.xlsx", header = TRUE, sheetIndex = 1)
 
 # Collecting the list of UID
-Uid_list <- read.xlsx("data/UID.xlsx", header = TRUE, sheetIndex = 2)
+Uid_list <- read.xlsx("data/UID.xlsx", header = TRUE, sheetIndex = 2)%>%
+  filter(Active=="Active")
 
+# Counting the number of rows to check for errors  
 r1<- nrow(Uid_raw)
 r2<- nrow(Uid_list)
 ```
@@ -39,7 +41,9 @@ The selected file analyzes `r nrow(Uid_list)` users for `r nrow(Uid_raw)` days, 
 ## Step 2: Pre-processing
 
 ```{r Pre-processing}
-### Already done
+### Pre-processing already done
+
+head(Uid_raw)
 ```
 
 Data has already been pre-processed and only data in the selected period and only notifications stating "The following UIDs have been unregistered" are shown.
@@ -49,22 +53,40 @@ Data has already been pre-processed and only data in the selected period and onl
 ```{r Transformation of UID_Raw}
 UID <- Uid_raw[,-2]%>%
   gather('UID01', 'UID02', 'UID03', 'UID04', 'UID05', 'UID06', 'UID07', 'UID08', 'UID09', 'UID10', 'UID11', 'UID12',
-         key="Column", value="UID")%>%
-  filter(UID!="NA")%>%
+         key="Column", value="UID")%>% # Changing the shape of the table
+  filter(UID!="NA")%>% # Removing UID associated to missing row in Users list tab
   arrange(Day)
 ```
 
 For each day, the list of users is extracted.   
+
 ```{r}
-head(UID)
+head(UID) 
 ```
 
-Some user in the list appear to be not active (UID= 64, 79,	108,	143,	162,	222,	237), and they shall be removed from the next table.   
+Each user appears once at the most every day.   
+We check that by counting how many times a UID appears every day.  
+```{r}
+head(UID%>%
+  group_by(Day)%>%
+  count(UID))
+
+```
+Then, we filter only those that appear more than once. The resulting table is empty.
+```{r}
+UID%>%
+  group_by(Day)%>%
+  count(UID)%>%
+  filter(n>1)
+```
+
+Some user in the list appears to be assigned to UID that are not in the user liste (UID= 64, 79,	108,	143,	162,	222,	237).
+They shall be removed from the next table.   
 
 ```{r Transformation by adding condition}
 Performance <- UID[,-2] %>%
-  left_join(Uid_list,by="UID")%>%
-  filter(Type!="NA")
+  left_join(Uid_list,by="UID")%>% # Adding the list of users, to collect data about the type of intervention
+  filter(Type!="NA") # Removing users that are not in the users list
 
 head(Performance)
 ```
@@ -77,7 +99,7 @@ The resulting table presents the sum of how many times participants have turned 
 
 ```{r Data mining}
 result <- Performance%>%
-  group_by(Type)%>%
+  group_by(Type)%>% # Gather results by type of intervention
   count(Type)
 
 result
