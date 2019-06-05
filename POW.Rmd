@@ -1,0 +1,133 @@
+---
+title: "How many times have users turned off the notifications?"
+output:
+  pdf_document: default
+  html_document: default
+date: "05/06/2019"
+---
+```{r setup, include=FALSE}
+# Options about chunks
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# Reading final scores
+library(xlsx)
+
+# Loading Todyverse to work with tables
+library(tidyverse)
+
+# Printing table in a nice format
+#library(kableExtra) #(This doesn't allow PDF creation)
+
+```
+
+
+## Step 1: Data selection
+
+```{r Data selection}
+# Collecting the ID of users
+Uid_raw <- read.xlsx("data/UID.xlsx", header = TRUE, sheetIndex = 1)
+
+# Collecting the list of UID
+Uid_list <- read.xlsx("data/UID.xlsx", header = TRUE, sheetIndex = 2)
+
+r1<- nrow(Uid_raw)
+r2<- nrow(Uid_list)
+```
+
+The selected file analyzes `r nrow(Uid_list)` users for `r nrow(Uid_raw)` days, from the beginning of the experimental phase (06.09.2017) until the end (11.01.2018).
+
+## Step 2: Pre-processing
+
+```{r Pre-processing}
+### Already done
+```
+
+Data has already been pre-processed and only data in the selected period and only notifications stating "The following UIDs have been unregistered" are shown.
+
+## Step 3: Transformation
+
+```{r Transformation of UID_Raw}
+UID <- Uid_raw[,-2]%>%
+  gather('UID01', 'UID02', 'UID03', 'UID04', 'UID05', 'UID06', 'UID07', 'UID08', 'UID09', 'UID10', 'UID11', 'UID12',
+         key="Column", value="UID")%>%
+  filter(UID!="NA")%>%
+  arrange(Day)
+```
+
+For each day, the list of users is extracted.   
+```{r}
+head(UID)
+```
+
+Some user in the list appear to be not active (UID= 64, 79,	108,	143,	162,	222,	237), and they shall be removed from the next table.   
+
+```{r Transformation by adding condition}
+Performance <- UID[,-2] %>%
+  left_join(Uid_list,by="UID")%>%
+  filter(Type!="NA")
+
+head(Performance)
+```
+
+The resulting table allows obtaining the study conditions of each participant.
+
+## Step 4: Data mining
+
+The resulting table presents the sum of how many times participants have turned the system off, divided by type of intervention.   
+
+```{r Data mining}
+result <- Performance%>%
+  group_by(Type)%>%
+  count(Type)
+
+result
+
+```
+
+An in-depth analysis allows observing some interesting trends concerning how many times each user has turned the system off.   
+```{r Data mining in depth}
+# Listing the UID per type
+result_details <- Performance%>%
+  group_by(Type)%>%
+  count(UID)
+
+# Counting how many UID per type
+UID_details <- result_details%>%
+  group_by(Type)%>%
+  count(Type)
+
+# Assessing the average of events per Type
+result_avg <- result
+result_avg$n <- as.numeric(format(round(result$n/UID_details$n,2), nsmall = 2))
+```
+
+The amount of times each participant has turned the system off varies greatly among particiapants.  
+```{r}
+head(result_details,10)
+```
+
+By gathering the information about the participant, it is possible to count how many participants are listed in each type.   
+```{r}
+UID_details
+```
+
+Consequently, it is possible to obtain the average of how many times each user has turned the system off.   
+```{r}
+result_avg
+```
+
+In the end, it apperars that the average of `r result_avg$Type[1]` (`r result_avg$n[1]`) is smaller than the average of `r result_avg$Type[3]` (`r result_avg$n[3]`).
+
+## Step 5: Evaluation
+
+```{r Evaluation}
+# NO additional test
+```
+
+As requested, the current analysis allows stating that:    
+
+* In `r result$Type[1]` condition users turned off the notifications `r result$n[1]` amount of times.   
+* In `r result$Type[2]` condition users turned off the notifications `r result$n[2]` amount of times.   
+* In `r result$Type[3]` condition users turned off the notifications `r result$n[3]` amount of times.   
+* In `r result$Type[4]` condition users turned off the notifications `r result$n[4]` amount of times.   
+
